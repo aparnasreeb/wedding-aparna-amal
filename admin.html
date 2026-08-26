@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wedding Admin</title><link rel="stylesheet" href="style.css"><style>
+body{padding:25px;background:#fbf7f2}main{max-width:850px;margin:auto;background:#fffdf9;padding:30px;border:1px solid #dfd2ce;border-radius:18px}label{display:block;margin:12px 0;color:#786d70}input,textarea,select{display:block;width:100%;padding:12px;margin-top:5px;border:1px solid #dfd2ce;border-radius:9px;font:inherit}button{padding:12px 18px;border:0;border-radius:999px;background:#8e777c;color:#fff;cursor:pointer}.event{border:1px solid #dfd2ce;padding:15px;border-radius:12px;margin:12px 0}.hint{color:#786d70}.hide{display:none}
+</style></head><body><main>
+<h1>Amal & Aparna — Admin</h1>
+<section id="login"><h2>Admin Login</h2><label>Email<input id="email" type="email"></label><label>Password<input id="password" type="password"></label><button id="loginBtn">Log in</button><p id="loginMsg"></p></section>
+<section id="editor" class="hide"><button id="logout">Log out</button><h2>Website content</h2><div id="fields"></div><h2>Celebrations</h2><div id="events"></div>
+<h2>Theme</h2><select id="theme"><option value="rose">Elegant Rose</option><option value="ivory">Classic Ivory & Gold</option><option value="botanical">Botanical</option><option value="dark">Modern Dark & Gold</option><option value="kerala">Traditional Kerala</option></select>
+<label>Hero photo URL<input id="heroPhoto"></label><label>Invitation photo URL<input id="invPhoto"></label><label>Closing photo URL<input id="closingPhoto"></label><label>WhatsApp RSVP number<input id="wa" placeholder="+91 9876543210"></label>
+<button id="save">Save changes</button><p id="status"></p><p class="hint">This editor saves content online. Photo upload controls can be connected to Supabase Storage next.</p></section>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+const db=supabase.createClient("https://blxqnichxixwjcqcwtxo.supabase.co","sb_publishable_gauvwiGtqFaeLfOCwKd1pQ_BoMAB3Fj");
+let content=null;
+const defaults={"bride": "Aparna", "groom": "Amal", "heroKicker": "Together with their families", "inviteTitle": "Wedding Invitation", "weddingDate": "01 November 2026", "invitationMessage": "Together with our families, we joyfully invite you to join us as we begin this new chapter. Your presence, blessings, and love will make our celebration complete.", "rsvpDeadline": "27 October 2026", "coordinatorName": "P Venugopal Nair", "coordinatorPhone": "9983867697", "whatsappNumber": "", "closingMain": "Thank you for being part of our story", "closingSub": "and for blessing us as we begin forever.", "theme": "rose", "photos": {"hero": "", "invitation": "", "closing": ""}, "events": [{"name": "Sangeet", "date": "31 October 2026", "time": "6:30 PM", "venue": "Al Saj Amaranta", "address": "Service Rd, Kazhakkoottam, Thiruvananthapuram, Kerala 695582", "map": "https://maps.app.goo.gl/HG8cMTt6fJzMacrs9"}, {"name": "Wedding", "date": "01 November 2026", "time": "11:40 AM", "venue": "Al Saj Arena", "address": "Service Rd, Poundukadavu, Thiruvananthapuram, Kerala 695583", "map": "https://maps.app.goo.gl/3NUUPpaWNFwy6N34A"}, {"name": "Reception", "date": "03 November 2026", "time": "5:00 PM", "venue": "Contour Backwaters", "address": "Alappuzha - Changanassery Hwy, Changanassery, Kerala 686101", "map": "https://maps.app.goo.gl/VjAKarV89b1bNTYL8"}]};
+const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+async function editor(){const {data}=await db.from("wedding_content").select("content").eq("id",1).maybeSingle();content=data?.content||structuredClone(defaults);fill();}
+function fill(){
+ const keys=[["bride","Bride"],["groom","Groom"],["heroKicker","Hero text"],["inviteTitle","Invitation title"],["weddingDate","Wedding date"],["invitationMessage","Invitation message"],["rsvpDeadline","RSVP deadline"],["coordinatorName","Coordinator name"],["coordinatorPhone","Coordinator phone"],["closingMain","Closing heading"],["closingSub","Closing message"]];
+ document.getElementById("fields").innerHTML=keys.map(x=>`<label>${x[1]}<input id="f_${x[0]}" value="${esc(content[x[0]])}"></label>`).join("");
+ document.getElementById("events").innerHTML=content.events.map((e,i)=>`<div class="event"><b>Event ${i+1}</b>${["name","date","time","venue","address","map"].map(k=>`<label>${k}<input data-i="${i}" data-k="${k}" value="${esc(e[k])}"></label>`).join("")}</div>`).join("");
+ theme.value=content.theme||"rose";heroPhoto.value=content.photos?.hero||"";invPhoto.value=content.photos?.invitation||"";closingPhoto.value=content.photos?.closing||"";wa.value=content.whatsappNumber||"";
+}
+loginBtn.onclick=async()=>{const {error}=await db.auth.signInWithPassword({email:email.value,password:password.value});if(error)loginMsg.textContent=error.message;else{login.classList.add("hide");editor.classList.remove("hide");await editor();}};
+logout.onclick=async()=>{await db.auth.signOut();location.reload()};
+save.onclick=async()=>{
+ ["bride","groom","heroKicker","inviteTitle","weddingDate","invitationMessage","rsvpDeadline","coordinatorName","coordinatorPhone","closingMain","closingSub"].forEach(k=>content[k]=document.getElementById("f_"+k).value);
+ document.querySelectorAll("[data-i]").forEach(x=>content.events[+x.dataset.i][x.dataset.k]=x.value);
+ content.theme=theme.value;content.whatsappNumber=wa.value;content.photos={hero:heroPhoto.value,invitation:invPhoto.value,closing:closingPhoto.value};
+ const {error}=await db.from("wedding_content").upsert({id:1,content});
+ status.textContent=error?error.message:"Saved successfully ✓";
+};
+(async()=>{const {data}=await db.auth.getSession();if(data.session){login.classList.add("hide");editor.classList.remove("hide");await editor();}})();
+</script></body></html>
